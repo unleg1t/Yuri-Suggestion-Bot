@@ -8,6 +8,7 @@ from threading import Thread
 # Note: For your discord bot token, just add an env var named "DISCORD_BOT_TOKEN" with the value.
 TODO_CHANNEL_ID = 1544487981031620698
 UNLEGIT_USER_ID = 966584910104129556
+SUGGESTIONS_CHANNEL_ID = 1544487981031620698
 
 # Flask Setup
 app = Flask(__name__)
@@ -34,7 +35,7 @@ async def on_ready() :
 
 @bot.event
 async def on_reaction_add(reaction, user) :
-    if reaction.emoji == '❌' and user.id == UNLEGIT_USER_ID :
+    if reaction.emoji == '❌' and user.id == UNLEGIT_USER_ID and reaction.message.channel.id == SUGGESTIONS_CHANNEL_ID :
         await reaction.message.delete()
     return
 
