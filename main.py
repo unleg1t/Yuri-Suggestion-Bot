@@ -6,11 +6,11 @@ Created on Wed Oct 14 09:21:00 2026
 """
 
 # Imports
-import discord, os, asyncio, pyrebase, random, re
+import discord, os, asyncio, pyrebase, random, re, aiohttp
 from flask import Flask
 from threading import Thread
 from discord.ext import tasks
-from flask import render_template
+from flask import render_template, url_for
 
 
 # Constants
@@ -142,61 +142,41 @@ def strg_list_clear(l) :
 
 # Flask Setup
 app = Flask(__name__)
-EMBED_THUMBNAIL_URL = 'https://cdn.discordapp.com/attachments/1537350046863851602/1544105762392117289/logo.png?ex=6acffc8d&is=6aceab0d&hm=46c6fd2a64ed15254c495b343463568ebfe1b45e1ca45e0c8e3c274b94c970fc&'
 EMBED_FOOTER_ICON_URL = 'https://sun9-37.vkuserphoto.ru/Xrj_iEhllM2zCVTr-mJkzSTYAWvEsfL1ssZBxA/Tz26Yw2Ruhk.jpg'
 
-def _embed_accent_color() :
+def _embed_accent_color():
     '''Accept a 3- or 6-digit hex value, with or without a leading #.'''
-    value = str(YURI_CLIENT_ACCENT or "").strip()
-    if re.fullmatch(r'#?(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})', value) :
+    value = str(YURI_CLIENT_ACCENT or '').strip()
+    if re.fullmatch(r'#?(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})', value):
         return (value if value.startswith('#') else f'#{value}')
-    return '#b45cff'
+    return "#b45cff"
 
-
-def _as_task_list(value) :
-    '''Avoid enumerating a string one character at a time if storage is malformed.'''
-    if (not value): return []
-    
-    if isinstance(value, str) :
+def _as_task_list(value):
+    """Return a safe list and avoid iterating over a string character-by-character."""
+    if not value:
+        return []
+    if isinstance(value, str):
         value = [value]
     return [str(task).title() for task in value]
 
+def _render_task_page(active_page) :
+    return render_template(
+        'embed.html',
+        active_page = active_page,
+        todo_tasks = _as_task_list(strg_get('TODO_TASKS')),
+        completed_tasks = _as_task_list(strg_get('COMPLETED_TASKS')),
+        thumbnail_url = url_for('static', filename = 'yuri-client-logo.png'),
+        footer_icon_url = EMBED_FOOTER_ICON_URL,
+        accent_color = _embed_accent_color(),
+    )
 
 @app.route("/")
-def home() :
-    tasks = _as_task_list(strg_get('TODO_TASKS'))
-    return render_template(
-        'embed.html',
-        embed_title = '# Yuri-Client Accepted Suggestions',
-        title_url = 'https://yuri-suggestion-bot.onrender.com/',
-        tasks = tasks,
-        intro_text = None,
-        empty_text = 'No new suggestions lodged at the moment.',
-        footer_text = (
-            '• To remove a task, type y!done <task-num> or y!remove <task-num>\n'
-            '• To share a new suggestion, drop it in the suggestions channel, and daddy unlegit will have a look at it.'
-        ),
-        thumbnail_url = EMBED_THUMBNAIL_URL,
-        footer_icon_url = EMBED_FOOTER_ICON_URL,
-        accent_color = _embed_accent_color(),
-    )
-
+def home():
+    return _render_task_page('todo')
 
 @app.route("/just_monika")
-def just_monika() :
-    tasks = _as_task_list(strg_get('COMPLETED_TASKS'))
-    return render_template(
-        'embed.html',
-        embed_title = '# Yuri-Client Finished/Completed Tasks',
-        title_url = 'https://yuri-suggestion-bot.onrender.com/just_monika',
-        tasks = tasks,
-        intro_text = 'This is a list of tasks that have been marked as finished/completed by daddy unlegit[p.s. he finished inside me~].',
-        empty_text = 'No new finished/completed tasks have been lodged at the moment.',
-        footer_text = 'To remove a task, type y!update remove <task-num>',
-        thumbnail_url = EMBED_THUMBNAIL_URL,
-        footer_icon_url = EMBED_FOOTER_ICON_URL,
-        accent_color = _embed_accent_color(),
-    )
+def just_monika():
+    return _render_task_page('finished')
 
 def run_flask() :
     app.run(host = '0.0.0.0', port = 10_000)
@@ -221,7 +201,6 @@ def load_statuses() :
     except :
         print('[LOG] Could not load any bot statuses.', flush = True)
     return
-    
 
 async def send_discord_dm(user_id, user = None, content = None, **kwargs) :
     if user == None: user = bot.get_user(user_id) or (await bot.fetch_user(user_id))
@@ -229,6 +208,24 @@ async def send_discord_dm(user_id, user = None, content = None, **kwargs) :
         await user.create_dm()
     await user.dm_channel.send(content, **kwargs)
     return
+
+async def create_naughty_embed(t) :
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            'https://api.purrbot.site/v2/img/nsfw/{t}/gif'
+        ) as response:
+            response.raise_for_status()
+            data = await response.json()
+
+    if data.get('error') or not data.get('link'):
+        raise RuntimeError('Failed to fetch a Yuri GIF from PurrBot.')
+
+    embed = discord.Embed(
+        color = discord.Colour.from_str(YURI_CLIENT_ACCENT)
+    )
+    embed.set_image(url = data['link'])
+
+    return embed
 
 def create_todo_embed() :
     todo_embed = discord.Embed(
@@ -238,7 +235,7 @@ def create_todo_embed() :
         color = discord.Colour.from_str(YURI_CLIENT_ACCENT)
     )
     
-    todo_embed.set_thumbnail(url = 'https://cdn.discordapp.com/attachments/1537350046863851602/1544105762392117289/logo.png?ex=6acffc8d&is=6aceab0d&hm=46c6fd2a64ed15254c495b343463568ebfe1b45e1ca45e0c8e3c274b94c970fc&')
+    todo_embed.set_thumbnail(url = 'https://cdn.discordapp.com/attachments/1528642947933933579/1560173364960698418/logo.png?ex=6ad1c02c&is=6ad06eac&hm=7cbdadc93c9bfbaf933f03b26eef85ff81fdbb7e0975ceef094d7c7d686ca496&animated=true')
     todo_embed.set_footer(
         text = '• To remove a task, type y!done <task-num> or y!remove <task-num>\n• To share a new suggestion, drop it in the suggestions channel, and daddy unlegit will have a look at it.',
         icon_url = 'https://sun9-37.vkuserphoto.ru/Xrj_iEhllM2zCVTr-mJkzSTYAWvEsfL1ssZBxA/Tz26Yw2Ruhk.jpg'
@@ -253,7 +250,7 @@ def create_finished_list_embed() :
         color = discord.Colour.from_str(YURI_CLIENT_ACCENT)
     )
     
-    finished_list_embed.set_thumbnail(url = 'https://cdn.discordapp.com/attachments/1537350046863851602/1544105762392117289/logo.png?ex=6acffc8d&is=6aceab0d&hm=46c6fd2a64ed15254c495b343463568ebfe1b45e1ca45e0c8e3c274b94c970fc&')
+    finished_list_embed.set_thumbnail(url = 'https://cdn.discordapp.com/attachments/1528642947933933579/1560173364960698418/logo.png?ex=6ad1c02c&is=6ad06eac&hm=7cbdadc93c9bfbaf933f03b26eef85ff81fdbb7e0975ceef094d7c7d686ca496&animated=true')
     finished_list_embed.set_footer(
         text = 'To remove a task, type y!update remove <task-num>',
         icon_url = 'https://sun9-37.vkuserphoto.ru/Xrj_iEhllM2zCVTr-mJkzSTYAWvEsfL1ssZBxA/Tz26Yw2Ruhk.jpg'
@@ -342,11 +339,17 @@ async def on_message(message) :
             embed = todo_embed
         )
         return
-    if message.content.replace('y! ', 'y!') in ['y!update list', 'y!update info', 'y!finished', 'y!completed'] :
+    elif message.content.replace('y! ', 'y!') in ['y!update list', 'y!update info', 'y!finished', 'y!completed'] :
         await message.reply(
             embed = create_finished_list_embed()
         )
         return
+    elif message.content.replace('y! ', 'y!') == 'y!yuri' :
+        naughty_embed = await create_naughty_embed('yuri')
+        await message.reply(content = '', embed = naughty_embed)
+    elif message.content.replace('y! ', 'y!') == 'y!yaoi' :
+        naughty_embed = await create_naughty_embed('yaoi')
+        await message.reply(content = '', embed = naughty_embed)
     
     if message.author.id != UNLEGIT_USER_ID: return
     if not message.content.replace('y! ', 'y!').startswith('y!'): return
