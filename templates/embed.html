@@ -4,47 +4,94 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#09060d">
-    <title>{{ embed_title.lstrip('#').strip() }}</title>
+    <title>Yuri-Client — {{ 'Finished Tasks' if active_page == 'finished' else 'Accepted Suggestions' }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
     <main class="page-shell">
-        <article class="discord-embed" style="--embed-accent: {{ accent_color }};">
-            <div class="embed-body">
-                <img
-                    class="embed-thumbnail"
-                    src="{{ thumbnail_url }}"
-                    alt="Yuri-Client logo"
-                    loading="eager"
-                >
+        <div class="preview-wrap">
+            <nav class="preview-switcher" aria-label="Choose task list">
+                <button type="button" data-page="todo" aria-pressed="{{ 'true' if active_page == 'todo' else 'false' }}">Accepted suggestions</button>
+                <button type="button" data-page="finished" aria-pressed="{{ 'true' if active_page == 'finished' else 'false' }}">Finished tasks</button>
+            </nav>
 
-                <h1 class="embed-title">
-                    <a href="{{ title_url }}">{{ embed_title }}</a>
-                </h1>
+            {% macro embed_card(card_id, title, title_url, tasks, intro_text, empty_text, footer_text, thumbnail_url, footer_icon_url, accent_color) %}
+            <article class="discord-embed" id="{{ card_id }}" style="--embed-accent: {{ accent_color }};" {% if card_id == 'finished-embed' and active_page != 'finished' %}hidden{% elif card_id == 'todo-embed' and active_page != 'todo' %}hidden{% endif %}>
+                <div class="embed-body">
+                    <img class="embed-thumbnail" src="{{ thumbnail_url }}" alt="Yuri-Client logo" loading="eager">
+                    <h1 class="embed-title"><a href="{{ title_url }}">{{ title }}</a></h1>
+                    {% if intro_text %}
+                        <p class="embed-intro">{{ intro_text }}</p>
+                    {% endif %}
 
-                {% if intro_text %}
-                    <p class="embed-intro">{{ intro_text }}</p>
-                {% endif %}
+                    {% if tasks %}
+                        <div class="task-list">
+                            {% for task in tasks %}
+                                <p class="task-line"><strong>♡ Task-{{ loop.index }}:</strong> {{ task }}</p>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="empty-state">{{ empty_text }}</p>
+                        <div class="empty-spacing" aria-hidden="true"><span></span><span></span><span></span></div>
+                    {% endif %}
+                </div>
+                <footer class="embed-footer">
+                    <img src="{{ footer_icon_url }}" alt="" class="footer-icon" loading="lazy">
+                    <p class="footer-text">{{ footer_text }}</p>
+                </footer>
+            </article>
+            {% endmacro %}
 
-                {% if tasks %}
-                    <div class="task-list">
-                        {% for task in tasks %}
-                            <p class="task-line"><strong>♡ Task-{{ loop.index }}:</strong> {{ task }}</p>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="empty-state">{{ empty_text }}</p>
-                    <div class="empty-spacing" aria-hidden="true">
-                        <span></span><span></span><span></span>
-                    </div>
-                {% endif %}
-            </div>
+            {{ embed_card(
+                'todo-embed',
+                '# Yuri-Client Accepted Suggestions',
+                'https://yuri-suggestion-bot.onrender.com/',
+                todo_tasks,
+                None,
+                'No new suggestions lodged at the moment.',
+                '• To remove a task, type y!done <task-num> or y!remove <task-num>\n• To share a new suggestion, drop it in the suggestions channel, and daddy unlegit will have a look at it.',
+                thumbnail_url,
+                footer_icon_url,
+                accent_color
+            ) }}
 
-            <footer class="embed-footer">
-                <img src="{{ footer_icon_url }}" alt="" class="footer-icon" loading="lazy">
-                <p class="footer-text">{{ footer_text }}</p>
-            </footer>
-        </article>
+            {{ embed_card(
+                'finished-embed',
+                '# Yuri-Client Finished/Completed Tasks',
+                'https://yuri-suggestion-bot.onrender.com/just_monika',
+                completed_tasks,
+                'This is a list of tasks that have been marked as finished/completed by daddy unlegit[p.s. he finished inside me~].',
+                'No new finished/completed tasks have been lodged at the moment.',
+                'To remove a task, type y!update remove <task-num>',
+                thumbnail_url,
+                footer_icon_url,
+                accent_color
+            ) }}
+        </div>
     </main>
+
+    <script>
+    (() => {
+        const buttons = document.querySelectorAll('[data-page]');
+        const embeds = {
+            todo: document.getElementById('todo-embed'),
+            finished: document.getElementById('finished-embed')
+        };
+        buttons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const selected = button.dataset.page;
+                Object.entries(embeds).forEach(([name, embed]) => {
+                    embed.hidden = name !== selected;
+                });
+                buttons.forEach((item) => {
+                    item.setAttribute('aria-pressed', String(item === button));
+                });
+                document.title = selected === 'finished'
+                    ? 'Yuri-Client — Finished Tasks'
+                    : 'Yuri-Client — Accepted Suggestions';
+            });
+        });
+    })();
+    </script>
 </body>
 </html>
