@@ -6,9 +6,10 @@ Created on Wed Oct 14 09:21:00 2026
 """
 
 # Imports
-import discord, os, asyncio, pyrebase
+import discord, os, asyncio, pyrebase, random
 from flask import Flask
 from threading import Thread
+from discord.ext import tasks
 
 
 # Constants
@@ -146,12 +147,12 @@ def home() :
     if strg_get('TODO_TASKS') != None :
         return (
             'whoopsie! you caught us naughty girls having yuri sex >w< oh nuu~' + 
-            '<br><hr><br><br>' + 
+            '<hr><br>' + 
             '<h3># Yuri-Client Accepted Suggestions</h3>' + 
-            '<br>' + 
-            ('<br>'.join([f'<br>♡ Task-{i + 1}:</b> {suggestion.title()}' for i, suggestion in enumerate(strg_get('TODO_TASKS'))]) if len(strg_get('TODO_TASKS') or []) > 0 else '<br>-# No new suggestions lodged at the moment.<br><br><br><br>') + 
+            '\n' + 
+            ('\n'.join([f'<b>♡ Task-{i + 1}:</b> {suggestion.title()}' for i, suggestion in enumerate(strg_get('TODO_TASKS'))]) if len(strg_get('TODO_TASKS') or []) > 0 else '<br>-# No new suggestions lodged at the moment.<br><br><br><br>') + 
             '• To remove a task, type y!done <task-num> or y!remove <task-num>' + 
-            '<br>' + 
+            '\n' + 
             '• To share a new suggestion, drop it in the suggestions channel, and daddy unlegit will have a look at it.'
         )
     else :
@@ -162,10 +163,10 @@ def just_monika() :
     if strg_get('COMPLETED_TASKS') != None :
         return (
             'just monika.' + 
-            '<br><hr><br><br>' + 
+            '<hr><br>' + 
             '<h3># Yuri-Client Finished/Completed Tasks</h3>' + 
-            '<br>' + 
-            ('<br>'.join([f'<br>♡ Task-{i + 1}:</b> {completed_task.title()}' for i, completed_task in enumerate(strg_get('COMPLETED_TASKS'))]) if len(strg_get('COMPLETED_TASKS') or []) > 0 else '<br>-# No new finished/completed tasks have been lodged at the moment.<br><br><br><br>') + 
+            '\n' + 
+            ('\n'.join([f'<b>♡ Task-{i + 1}:</b> {completed_task.title()}' for i, completed_task in enumerate(strg_get('COMPLETED_TASKS'))]) if len(strg_get('COMPLETED_TASKS') or []) > 0 else '<br>-# No new finished/completed tasks have been lodged at the moment.<br><br><br><br>') + 
             '• To remove a task, type y!update remove <task-num>'
         )
     else :
@@ -182,7 +183,19 @@ def keep_alive() :
 
 # Discord Setup
 bot = discord.Client(intents = discord.Intents.all())
-yuri_guild, suggestions_channel = None, None
+yuri_guild, suggestions_channel, current_bot_status, BOT_STATUSES = None, None, None, ['Getting pounded in the ass by darry unlegit uwu~', 'OpenMyauin~']
+
+def load_statuses() :
+    global BOT_STATUSES
+    
+    try :
+        with open('statuses.txt', 'r') as f :
+            BOT_STATUSES = f.readlines()
+            return
+    except :
+        print('[LOG] Could not load any bot statuses.', flush = True)
+    return
+    
 
 async def send_discord_dm(user_id, user = None, content = None, **kwargs) :
     if user == None: user = bot.get_user(user_id) or (await bot.fetch_user(user_id))
@@ -195,7 +208,7 @@ def create_todo_embed() :
     todo_embed = discord.Embed(
         title = '# Yuri-Client Accepted Suggestions',
         url = 'https://yuri-suggestion-bot.onrender.com/',
-        description = ('\n'.join([f'♡ Task-{i + 1}: {suggestion.title()}' for i, suggestion in enumerate(strg_get('TODO_TASKS'))]) if len(strg_get('TODO_TASKS') or []) > 0 else '_ _\n-# No new suggestions lodged at the moment.\n_ _\n_ _\n_ _\n_ _'),
+        description = ('\n'.join([f'**♡ Task-{i + 1}:** {suggestion.title()}' for i, suggestion in enumerate(strg_get('TODO_TASKS'))]) if len(strg_get('TODO_TASKS') or []) > 0 else '_ _\n-# No new suggestions lodged at the moment.\n_ _\n_ _\n_ _\n_ _'),
         color = discord.Colour.from_str(YURI_CLIENT_ACCENT)
     )
     
@@ -210,7 +223,7 @@ def create_finished_list_embed() :
     finished_list_embed = discord.Embed(
         title = '# Yuri-Client Finished/Completed Tasks',
         url = 'https://yuri-suggestion-bot.onrender.com/just_monika',
-        description = '-# This is a list of tasks that have been marked as finished/completed by daddy unlegit[p.s. he finished inside me~].\n\n' + ('\n'.join([f'♡ Task-{i + 1}: {completed_task.title()}' for i, completed_task in enumerate(strg_get('COMPLETED_TASKS'))]) if len(strg_get('COMPLETED_TASKS') or []) > 0 else '_ _\n-# No new finished/completed tasks have been lodged at the moment.\n_ _\n_ _\n_ _\n_ _'),
+        description = '-# This is a list of tasks that have been marked as finished/completed by daddy unlegit[p.s. he finished inside me~].\n\n' + ('\n'.join([f'**♡ Task-{i + 1}:** {completed_task.title()}' for i, completed_task in enumerate(strg_get('COMPLETED_TASKS'))]) if len(strg_get('COMPLETED_TASKS') or []) > 0 else '_ _\n-# No new finished/completed tasks have been lodged at the moment.\n_ _\n_ _\n_ _\n_ _'),
         color = discord.Colour.from_str(YURI_CLIENT_ACCENT)
     )
     
@@ -238,19 +251,41 @@ async def update_todo_embed() :
     strg_store('TODO_EMBED_MSG_ID', todo_embed_msg.id)
     return todo_embed_msg, todo_embed
 
+@tasks.loop(minutes = 5)
+async def five_min_task_pool() :
+    try :
+        global current_bot_status
+        
+        current_bot_status = random.choice([status for status in BOT_STATUSES if status != current_bot_status])
+        bot_activity = discord.Game(name = current_bot_status, start = bot.user.created_at)
+        await bot.change_presence(activity = bot_activity)
+    except :
+        print('[LOG] Something went wrong while tryna set the bot status', flush = True)
+    return
+
+@five_min_task_pool.error
+async def five_min_task_pool_error(error) :
+    print('[LOG] Something went wrong while tryna set the bot status', flush = True)
+    return
+
 @bot.event
 async def on_ready() :
-    global yuri_guild, suggestions_channel
+    global yuri_guild, suggestions_channel, current_bot_status
     
     print('[LOG] Getting the girls in bed...', flush = True)
     
     yuri_guild = bot.get_guild(YURI_GUILD_ID) or (await bot.fetch_guild(YURI_GUILD_ID))
     suggestions_channel = bot.get_channel(SUGGESTIONS_CHANNEL_ID) or (await bot.fetch_channel(SUGGESTIONS_CHANNEL_ID))
     
+    load_statuses()
+    
     print('[LOG] Rubbing up their pussies.. massaging the melons~', flush = True)
     
     firebase_db_obj.child('storage').child('dummy').set('123')
     await update_todo_embed()
+    
+    if not five_min_task_pool.is_running() :
+        five_min_task_pool.start()
     
     print('[LOG] Started having yuri sex~ >w<', flush = True)
     return
@@ -260,10 +295,10 @@ async def on_reaction_add(reaction, user) :
     if reaction.emoji == '✅' and user.id == UNLEGIT_USER_ID and reaction.message.channel.id == SUGGESTIONS_CHANNEL_ID :
         strg_list_append('TODO_TASKS', reaction.message.content)
         await update_todo_embed()
-        send_discord_dm(reaction.message.author.id, content = f'✅ | Your suggestion for yuri-client(quoted below) has been accepted! You can now see it in the list of other accepted suggestions.\n> {reaction.message.content}')
+        await send_discord_dm(reaction.message.author.id, content = f'✅ | Your suggestion for yuri-client(quoted below) has been accepted! You can now see it in the list of other accepted suggestions.\n> {reaction.message.content}')
         await reaction.message.delete()
     if reaction.emoji == '❌' and user.id == UNLEGIT_USER_ID and reaction.message.channel.id == SUGGESTIONS_CHANNEL_ID :
-        send_discord_dm(reaction.message.author.id, content = f'❌ | Your suggestion for yuri-client(quoted below) has been rejected!\n> {reaction.message.content}')
+        await send_discord_dm(reaction.message.author.id, content = f'❌ | Your suggestion for yuri-client(quoted below) has been rejected!\n> {reaction.message.content}')
         await reaction.message.delete()
     return
 
