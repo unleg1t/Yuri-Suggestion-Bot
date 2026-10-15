@@ -24,8 +24,12 @@ YURI_GUILD_ID = 1537350044309782631
 SUGGESTIONS_CHANNEL_ID = 1544487981031620698
 
 HELP_DICT = {
-    'help': ['`y!help <optional:query>`', '[ADMIN ONLY] Provides a list of all commands available, if the optionary query is provided then it describes the command being queried.'],
+    'help': ['`y!help <optional:query>`', 'Provides a list of all commands available, if the optionary query is provided then it describes the command being queried.'],
     'done': ['`y!done <task-num>`', '[ADMIN ONLY] Marks the task number mentioned, as completed and removes it from the task list.'],
+    'yuri': ['`y!yuri`', 'Posts a random SFW yuri gif in chat.'],
+    'yaoi': ['`y!yaoi`', 'Posts a random SFW yaoi gif in chat.'],
+    'femboy': ['`y!femboy`', 'Posts a random SFW femboy gif in chat.'],
+    'astolfo': ['`y!astolfo`', 'Posts a random SFW astolfo gif in chat.'],
     'remove': ['`y!remove <task-num>`', '[ADMIN ONLY] Removes the task corresponding to the task number mentioned, from the task list.'],
     'list': ['`y!list`', 'Lists all the tasks in an embed list format.'],
     'tasks': ['`y!tasks`', 'Lists all the tasks in an embed list format.'],
@@ -241,7 +245,7 @@ async def create_naughty_embed(t) :
                 's' : 'post',
                 'q' : 'index',
                 'json' : '1',
-                'tags' : f'{t} rating:safe',
+                'tags' : ('astolfo_(fate) rating:safe' if t == 'astolfo' else 'otoko_no_ko rating:safe'),
                 'limit' : '100'
             }) as response :
                 response.raise_for_status()
