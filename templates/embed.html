@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#09060d">
+    <title>{{ embed_title.lstrip('#').strip() }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <main class="page-shell">
+        <article class="discord-embed" style="--embed-accent: {{ accent_color }};">
+            <div class="embed-body">
+                <img
+                    class="embed-thumbnail"
+                    src="{{ thumbnail_url }}"
+                    alt="Yuri-Client logo"
+                    loading="eager"
+                >
+
+                <h1 class="embed-title">
+                    <a href="{{ title_url }}">{{ embed_title }}</a>
+                </h1>
+
+                {% if intro_text %}
+                    <p class="embed-intro">{{ intro_text }}</p>
+                {% endif %}
+
+                {% if tasks %}
+                    <div class="task-list">
+                        {% for task in tasks %}
+                            <p class="task-line"><strong>♡ Task-{{ loop.index }}:</strong> {{ task }}</p>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="empty-state">{{ empty_text }}</p>
+                    <div class="empty-spacing" aria-hidden="true">
+                        <span></span><span></span><span></span>
+                    </div>
+                {% endif %}
+            </div>
+
+            <footer class="embed-footer">
+                <img src="{{ footer_icon_url }}" alt="" class="footer-icon" loading="lazy">
+                <p class="footer-text">{{ footer_text }}</p>
+            </footer>
+        </article>
+    </main>
+</body>
+</html>
