@@ -196,7 +196,7 @@ def create_todo_embed() :
         color = discord.Colour.from_str(YURI_CLIENT_ACCENT)
     )
     
-    todo_embed.set_thumbnail('https://cdn.discordapp.com/attachments/1537350046863851602/1544105762392117289/logo.png?ex=6acffc8d&is=6aceab0d&hm=46c6fd2a64ed15254c495b343463568ebfe1b45e1ca45e0c8e3c274b94c970fc&')
+    todo_embed.set_thumbnail(url = 'https://cdn.discordapp.com/attachments/1537350046863851602/1544105762392117289/logo.png?ex=6acffc8d&is=6aceab0d&hm=46c6fd2a64ed15254c495b343463568ebfe1b45e1ca45e0c8e3c274b94c970fc&')
     todo_embed.set_footer(
         text = '• To remove a task, type y!done <task-num> or y!remove <task-num>\n• To share a new suggestion, drop it in the suggestions channel, and daddy unlegit will have a look at it.',
         icon_url = 'https://sun9-37.vkuserphoto.ru/Xrj_iEhllM2zCVTr-mJkzSTYAWvEsfL1ssZBxA/Tz26Yw2Ruhk.jpg'
@@ -211,7 +211,7 @@ def create_finished_list_embed() :
         color = discord.Colour.from_str(YURI_CLIENT_ACCENT)
     )
     
-    finished_list_embed.set_thumbnail('https://cdn.discordapp.com/attachments/1537350046863851602/1544105762392117289/logo.png?ex=6acffc8d&is=6aceab0d&hm=46c6fd2a64ed15254c495b343463568ebfe1b45e1ca45e0c8e3c274b94c970fc&')
+    finished_list_embed.set_thumbnail(url = 'https://cdn.discordapp.com/attachments/1537350046863851602/1544105762392117289/logo.png?ex=6acffc8d&is=6aceab0d&hm=46c6fd2a64ed15254c495b343463568ebfe1b45e1ca45e0c8e3c274b94c970fc&')
     finished_list_embed.set_footer(
         text = 'To remove a task, type y!update remove <task-num>',
         icon_url = 'https://sun9-37.vkuserphoto.ru/Xrj_iEhllM2zCVTr-mJkzSTYAWvEsfL1ssZBxA/Tz26Yw2Ruhk.jpg'
