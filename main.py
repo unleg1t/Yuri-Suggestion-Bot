@@ -6,10 +6,11 @@ Created on Wed Oct 14 09:21:00 2026
 """
 
 # Imports
-import discord, os, asyncio, pyrebase, random
+import discord, os, asyncio, pyrebase, random, re
 from flask import Flask
 from threading import Thread
 from discord.ext import tasks
+from flask import render_template
 
 
 # Constants
@@ -141,36 +142,61 @@ def strg_list_clear(l) :
 
 # Flask Setup
 app = Flask(__name__)
+EMBED_THUMBNAIL_URL = 'https://cdn.discordapp.com/attachments/1537350046863851602/1544105762392117289/logo.png?ex=6acffc8d&is=6aceab0d&hm=46c6fd2a64ed15254c495b343463568ebfe1b45e1ca45e0c8e3c274b94c970fc&'
+EMBED_FOOTER_ICON_URL = 'https://sun9-37.vkuserphoto.ru/Xrj_iEhllM2zCVTr-mJkzSTYAWvEsfL1ssZBxA/Tz26Yw2Ruhk.jpg'
 
-@app.route('/')
+def _embed_accent_color() :
+    '''Accept a 3- or 6-digit hex value, with or without a leading #.'''
+    value = str(YURI_CLIENT_ACCENT or "").strip()
+    if re.fullmatch(r'#?(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})', value) :
+        return (value if value.startswith('#') else f'#{value}')
+    return '#b45cff'
+
+
+def _as_task_list(value) :
+    '''Avoid enumerating a string one character at a time if storage is malformed.'''
+    if (not value): return []
+    
+    if isinstance(value, str) :
+        value = [value]
+    return [str(task).title() for task in value]
+
+
+@app.route("/")
 def home() :
-    if strg_get('TODO_TASKS') != None :
-        return (
-            'whoopsie! you caught us naughty girls having yuri sex >w< oh nuu~' + 
-            '<hr><br>' + 
-            '<h3># Yuri-Client Accepted Suggestions</h3>' + 
-            '\n' + 
-            ('\n'.join([f'<b>♡ Task-{i + 1}:</b> {suggestion.title()}' for i, suggestion in enumerate(strg_get('TODO_TASKS'))]) if len(strg_get('TODO_TASKS') or []) > 0 else '<br>-# No new suggestions lodged at the moment.<br><br><br><br>') + 
-            '• To remove a task, type y!done <task-num> or y!remove <task-num>' + 
-            '\n' + 
+    tasks = _as_task_list(strg_get('TODO_TASKS'))
+    return render_template(
+        'embed.html',
+        embed_title = '# Yuri-Client Accepted Suggestions',
+        title_url = 'https://yuri-suggestion-bot.onrender.com/',
+        tasks = tasks,
+        intro_text = None,
+        empty_text = 'No new suggestions lodged at the moment.',
+        footer_text = (
+            '• To remove a task, type y!done <task-num> or y!remove <task-num>\n'
             '• To share a new suggestion, drop it in the suggestions channel, and daddy unlegit will have a look at it.'
-        )
-    else :
-        return 'whoopsie! you caught us naughty girls having yuri sex >w< oh nuu~'
+        ),
+        thumbnail_url = EMBED_THUMBNAIL_URL,
+        footer_icon_url = EMBED_FOOTER_ICON_URL,
+        accent_color = _embed_accent_color(),
+    )
 
-@app.route('/just_monika')
+
+@app.route("/just_monika")
 def just_monika() :
-    if strg_get('COMPLETED_TASKS') != None :
-        return (
-            'just monika.' + 
-            '<hr><br>' + 
-            '<h3># Yuri-Client Finished/Completed Tasks</h3>' + 
-            '\n' + 
-            ('\n'.join([f'<b>♡ Task-{i + 1}:</b> {completed_task.title()}' for i, completed_task in enumerate(strg_get('COMPLETED_TASKS'))]) if len(strg_get('COMPLETED_TASKS') or []) > 0 else '<br>-# No new finished/completed tasks have been lodged at the moment.<br><br><br><br>') + 
-            '• To remove a task, type y!update remove <task-num>'
-        )
-    else :
-        return 'just monika.'
+    tasks = _as_task_list(strg_get('COMPLETED_TASKS'))
+    return render_template(
+        'embed.html',
+        embed_title = '# Yuri-Client Finished/Completed Tasks',
+        title_url = 'https://yuri-suggestion-bot.onrender.com/just_monika',
+        tasks = tasks,
+        intro_text = 'This is a list of tasks that have been marked as finished/completed by daddy unlegit[p.s. he finished inside me~].',
+        empty_text = 'No new finished/completed tasks have been lodged at the moment.',
+        footer_text = 'To remove a task, type y!update remove <task-num>',
+        thumbnail_url = EMBED_THUMBNAIL_URL,
+        footer_icon_url = EMBED_FOOTER_ICON_URL,
+        accent_color = _embed_accent_color(),
+    )
 
 def run_flask() :
     app.run(host = '0.0.0.0', port = 10_000)
@@ -293,18 +319,18 @@ async def on_ready() :
 @bot.event
 async def on_reaction_add(reaction, user) :
     if reaction.emoji == '✅' and user.id == UNLEGIT_USER_ID and reaction.message.channel.id == SUGGESTIONS_CHANNEL_ID :
-        strg_list_append('TODO_TASKS', reaction.message.content)
+        strg_list_append('TODO_TASKS', reaction.message.content.replace('y! ', 'y!'))
         await update_todo_embed()
-        await send_discord_dm(reaction.message.author.id, content = f'✅ | Your suggestion for yuri-client(quoted below) has been accepted! You can now see it in the list of other accepted suggestions.\n> {reaction.message.content}')
+        await send_discord_dm(reaction.message.author.id, content = f'✅ | Your suggestion for yuri-client(quoted below) has been accepted! You can now see it in the list of other accepted suggestions.\n> {reaction.message.content.replace('y! ', 'y!')}')
         await reaction.message.delete()
     if reaction.emoji == '❌' and user.id == UNLEGIT_USER_ID and reaction.message.channel.id == SUGGESTIONS_CHANNEL_ID :
-        await send_discord_dm(reaction.message.author.id, content = f'❌ | Your suggestion for yuri-client(quoted below) has been rejected!\n> {reaction.message.content}')
+        await send_discord_dm(reaction.message.author.id, content = f'❌ | Your suggestion for yuri-client(quoted below) has been rejected!\n> {reaction.message.content.replace('y! ', 'y!')}')
         await reaction.message.delete()
     return
 
 @bot.event
 async def on_message(message) :
-    if message.content in ['y!tasks', 'y!suggestions', 'y!todos', 'y!list'] :
+    if message.content.replace('y! ', 'y!') in ['y!tasks', 'y!suggestions', 'y!todos', 'y!list'] :
         if (todo_embed_msg_id := strg_get('TODO_EMBED_MSG_ID')) == None :
             todo_embed_msg, todo_embed = update_todo_embed()
             todo_embed_msg_id = todo_embed_msg.id
@@ -316,17 +342,17 @@ async def on_message(message) :
             embed = todo_embed
         )
         return
-    if message.content in ['y!update list', 'y!update info', 'y!finished', 'y!completed'] :
+    if message.content.replace('y! ', 'y!') in ['y!update list', 'y!update info', 'y!finished', 'y!completed'] :
         await message.reply(
             embed = create_finished_list_embed()
         )
         return
     
     if message.author.id != UNLEGIT_USER_ID: return
-    if not message.content.startswith('y!'): return
+    if not message.content.replace('y! ', 'y!').startswith('y!'): return
     
-    if message.content.startswith('y!help') :
-        query = message.content.lower()[len('y!help') : ].strip()
+    if message.content.replace('y! ', 'y!').startswith('y!help') :
+        query = message.content.replace('y! ', 'y!').lower()[len('y!help') : ].strip()
         if query != '' :
             if query not in HELP_DICT :
                 await message.channel.send('The query provided is invalid, there is no such command available!')
@@ -390,8 +416,8 @@ async def on_message(message) :
             
             await msg.edit(content = '-# This message is now inactive, interacting with it will no longer work. Invoke the command again to interact with it.')
         return
-    elif message.content.startswith('y!done ') :
-        task_num = message.content[len('y!done ') : ]
+    elif message.content.replace('y! ', 'y!').startswith('y!done ') :
+        task_num = message.content.replace('y! ', 'y!')[len('y!done ') : ]
         task_list_len = len(strg_get('TODO_TASKS') or [])
         if task_list_len == 0 :
             await message.channel.send('The task list is currently empty.')
@@ -434,8 +460,8 @@ async def on_message(message) :
             else :
                 await message.channel.send(f'Invalid task number argument has been provided: {task_num}.')
             return
-    elif message.content.startswith('y!remove ') :
-        task_num = message.content[len('y!remove ') : ]
+    elif message.content.replace('y! ', 'y!').startswith('y!remove ') :
+        task_num = message.content.replace('y! ', 'y!')[len('y!remove ') : ]
         task_list_len = len(strg_get('TODO_TASKS') or [])
         if task_list_len == 0 :
             await message.channel.send('The task list is currently empty.')
@@ -477,7 +503,7 @@ async def on_message(message) :
             else :
                 await message.channel.send(f'Invalid task number argument has been provided: {task_num}.')
             return
-    elif message.content == 'y!clear' :
+    elif message.content.replace('y! ', 'y!') == 'y!clear' :
         confirmation_view = discord.ui.View(timeout = 5 * 60.0)
         yes_btn = discord.ui.Button(label = 'Yes', style = discord.ButtonStyle.success)
         no_btn = discord.ui.Button(label = 'No', style = discord.ButtonStyle.danger)
@@ -508,8 +534,8 @@ async def on_message(message) :
         confirmation_view.add_item(no_btn)
         
         await message.channel.send('Are you sure you want to clear the task list?\n-# Click yes to continue, no to cancel.', view = confirmation_view)
-    elif message.content.startswith('y!update remove ') :
-        task_num = message.content[len('y!update remove ') : ]
+    elif message.content.replace('y! ', 'y!').startswith('y!update remove ') :
+        task_num = message.content.replace('y! ', 'y!')[len('y!update remove ') : ]
         task_list_len = len(strg_get('COMPLETED_TASKS') or [])
         if task_list_len == 0 :
             await message.channel.send('The completed tasks list is currently empty.')
@@ -550,7 +576,7 @@ async def on_message(message) :
             else :
                 await message.channel.send(f'Invalid task number argument has been provided: {task_num}.')
             return
-    elif message.content == 'y!update clear' :
+    elif message.content.replace('y! ', 'y!') == 'y!update clear' :
         confirmation_view = discord.ui.View(timeout = 5 * 60.0)
         yes_btn = discord.ui.Button(label = 'Yes', style = discord.ButtonStyle.success)
         no_btn = discord.ui.Button(label = 'No', style = discord.ButtonStyle.danger)
