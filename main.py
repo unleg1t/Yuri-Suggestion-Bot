@@ -73,7 +73,10 @@ def strg_get(key) :
     return (branch.val() if branch != None else None)
 
 def strg_contains(key) :
-    return (key in firebase_db_obj.child('storage').shallow().get())
+    try :
+        return (key in firebase_db_obj.child('storage').get().val())
+    except :
+        firebase_db_obj.child('storage').child('dummy').set('123')
 
 def strg_remove(key) :
     global storage_dirty
@@ -246,6 +249,7 @@ async def on_ready() :
     
     print('[LOG] Rubbing up their pussies.. massaging the melons~', flush = True)
     
+    firebase_db_obj.child('storage').child('dummy').set('123')
     await update_todo_embed()
     
     print('[LOG] Started having yuri sex~ >w<', flush = True)
