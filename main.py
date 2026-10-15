@@ -10,6 +10,7 @@ import discord, os, asyncio, pyrebase, random, re, aiohttp
 from flask import Flask
 from threading import Thread
 from discord.ext import tasks
+from urllib.parse import urlparse
 from flask import render_template, url_for
 
 
@@ -210,21 +211,66 @@ async def send_discord_dm(user_id, user = None, content = None, **kwargs) :
     return
 
 async def create_naughty_embed(t) :
-    async with aiohttp.ClientSession() as session:
-        async with session.get(
-            f'https://api.purrbot.site/v2/img/nsfw/{t}/gif'
-        ) as response:
-            response.raise_for_status()
-            data = await response.json()
+    t = t.lower().strip()
 
-    if data.get('error') or not data.get('link'):
-        raise RuntimeError('Failed to fetch a Yuri GIF from PurrBot.')
+    async with aiohttp.ClientSession(timeout = aiohttp.ClientTimeout(total = 15)) as session :
+        if t in ('yuri', 'yaoi') :
+            pairing = 'ff' if t == 'yuri' else 'mm'
+            actions = ['hug', 'kiss', 'pat']
+            random.shuffle(actions)
+            image_url = None
+
+            for action in actions :
+                async with session.get(f'https://api.gifukai.com/v1/{action}', params = {'pairing' : pairing}) as response :
+                    if response.status == 404 :
+                        continue
+
+                    response.raise_for_status()
+                    data = await response.json()
+
+                image_url = data.get('url')
+
+                if image_url :
+                    break
+
+            if not image_url :
+                raise RuntimeError(f'Gifukai could not find a {t} GIF.')
+        elif t in ('astolfo', 'femboy') :
+            async with session.get('https://safebooru.org/index.php', params = {
+                'page' : 'dapi',
+                's' : 'post',
+                'q' : 'index',
+                'json' : '1',
+                'tags' : f'{t} rating:safe',
+                'limit' : '100'
+            }) as response :
+                response.raise_for_status()
+                data = await response.json(content_type = None)
+
+            if not isinstance(data, list) :
+                raise RuntimeError('Safebooru returned an unexpected response.')
+
+            valid_posts = [post for post in data if isinstance(post, dict) and isinstance(post.get('file_url'), str)
+                and urlparse(post['file_url']).path.lower().endswith(
+                    ('.gif', '.jpg', '.jpeg', '.png', '.webp')
+                )
+            ]
+
+            if not valid_posts :
+                raise RuntimeError( f'No safe-rated {t} images were found.')
+            image_url = random.choice(valid_posts)['file_url']
+            if image_url.startswith('//') :
+                image_url = f'https:{image_url}'
+        else :
+            raise ValueError('Image type must be yuri, yaoi, astolfo, or femboy.')
+
+    if not image_url.startswith('https://') :
+        raise RuntimeError('The image API returned an invalid URL.')
 
     embed = discord.Embed(
         color = discord.Colour.from_str(YURI_CLIENT_ACCENT)
     )
-    embed.set_image(url = data['link'])
-
+    embed.set_image(url = image_url)
     return embed
 
 def create_todo_embed() :
@@ -355,6 +401,18 @@ async def on_message(message) :
     elif message.content.replace('y! ', 'y!') == 'y!yaoi' :
         try :
             naughty_embed = await create_naughty_embed('yaoi')
+            await message.reply(content = '', embed = naughty_embed)
+        except :
+            pass
+    elif message.content.replace('y! ', 'y!') == 'y!femboy' :
+        try :
+            naughty_embed = await create_naughty_embed('femboy')
+            await message.reply(content = '', embed = naughty_embed)
+        except :
+            pass
+    elif message.content.replace('y! ', 'y!') == 'y!astolfo' :
+        try :
+            naughty_embed = await create_naughty_embed('astolfo')
             await message.reply(content = '', embed = naughty_embed)
         except :
             pass
