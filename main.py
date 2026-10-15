@@ -212,7 +212,7 @@ async def send_discord_dm(user_id, user = None, content = None, **kwargs) :
 async def create_naughty_embed(t) :
     async with aiohttp.ClientSession() as session:
         async with session.get(
-            'https://api.purrbot.site/v2/img/nsfw/{t}/gif'
+            f'https://api.purrbot.site/v2/img/nsfw/{t}/gif'
         ) as response:
             response.raise_for_status()
             data = await response.json()
@@ -327,6 +327,8 @@ async def on_reaction_add(reaction, user) :
 
 @bot.event
 async def on_message(message) :
+    if not message.content.replace('y! ', 'y!').startswith('y!'): return
+    
     if message.content.replace('y! ', 'y!') in ['y!tasks', 'y!suggestions', 'y!todos', 'y!list'] :
         if (todo_embed_msg_id := strg_get('TODO_EMBED_MSG_ID')) == None :
             todo_embed_msg, todo_embed = update_todo_embed()
@@ -345,16 +347,18 @@ async def on_message(message) :
         )
         return
     elif message.content.replace('y! ', 'y!') == 'y!yuri' :
-        naughty_embed = await create_naughty_embed('yuri')
-        await message.reply(content = '', embed = naughty_embed)
+        try :
+            naughty_embed = await create_naughty_embed('yuri')
+            await message.reply(content = '', embed = naughty_embed)
+        except :
+            pass
     elif message.content.replace('y! ', 'y!') == 'y!yaoi' :
-        naughty_embed = await create_naughty_embed('yaoi')
-        await message.reply(content = '', embed = naughty_embed)
-    
-    if message.author.id != UNLEGIT_USER_ID: return
-    if not message.content.replace('y! ', 'y!').startswith('y!'): return
-    
-    if message.content.replace('y! ', 'y!').startswith('y!help') :
+        try :
+            naughty_embed = await create_naughty_embed('yaoi')
+            await message.reply(content = '', embed = naughty_embed)
+        except :
+            pass
+    elif message.content.replace('y! ', 'y!').startswith('y!help') :
         query = message.content.replace('y! ', 'y!').lower()[len('y!help') : ].strip()
         if query != '' :
             if query not in HELP_DICT :
@@ -419,7 +423,10 @@ async def on_message(message) :
             
             await msg.edit(content = '-# This message is now inactive, interacting with it will no longer work. Invoke the command again to interact with it.')
         return
-    elif message.content.replace('y! ', 'y!').startswith('y!done ') :
+    
+    if message.author.id != UNLEGIT_USER_ID: return
+    
+    if message.content.replace('y! ', 'y!').startswith('y!done ') :
         task_num = message.content.replace('y! ', 'y!')[len('y!done ') : ]
         task_list_len = len(strg_get('TODO_TASKS') or [])
         if task_list_len == 0 :
